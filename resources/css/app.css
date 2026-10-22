@@ -1,0 +1,295 @@
+@import 'tailwindcss';
+
+/* day-mode variant: `daylight:` utilities apply when <html> has the .daylight class */
+@custom-variant daylight (&:where(.daylight, .daylight *));
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: ui-monospace, 'JetBrains Mono', 'SFMono-Regular', 'Menlo', monospace;
+
+    /* Scanner HUD palette. Utilities reference these vars, so overriding them under
+       html.daylight re-themes the whole app. Night (the scanner) is the default. */
+    --color-bg: #04070b;          /* deep field */
+    --color-surface: #0a121a;     /* HUD panels */
+    --color-inset: #0c1620;       /* inputs, wells */
+    --color-line: #15323a;        /* teal-tinted edges */
+    --color-ink: #d6f5e8;         /* primary text */
+    --color-ink-dim: #7fa6a0;     /* secondary text */
+    --color-ink-faint: #4f7a78;   /* tertiary text */
+    --color-accent: #1cf0a0;      /* ENL scanner green */
+    --color-accent-ink: #02110b;  /* text on accent fills */
+    --color-res: #38bdf8;         /* RES faction blue */
+    --color-enl: #1cf0a0;         /* ENL faction green — FIXED; never flips for RES viewers (unlike accent) */
+
+    /* Sharper, more technical corners than stock Tailwind. */
+    --radius-lg: 3px;
+    --radius-md: 2px;
+    --radius-sm: 1px;
+    --radius: 2px;
+}
+
+/* Daylight ops mode — high-contrast for a phone in direct sun. Drops the glow/scanlines. */
+html.daylight {
+    --color-bg: #e7edf3;
+    --color-surface: #ffffff;
+    --color-inset: #eef2f7;
+    --color-line: #b8c6cf;
+    --color-ink: #0c1a1f;
+    --color-ink-dim: #3f5560;
+    --color-ink-faint: #5f7882;
+    --color-accent: #047a57;
+    --color-accent-ink: #ffffff;
+    --color-res: #0369a1;         /* darker blue for contrast on the light surface */
+    --color-enl: #047a57;         /* darker green for the light surface */
+    color-scheme: light;
+}
+
+/* RES agents get a blue site highlight instead of the ENL green (faction tags keep --color-res). */
+html.res {
+    --color-accent: #38bdf8;
+    --color-accent-ink: #04121d;
+    /* remap the green utility palette → blue, so every emerald-* class (fills, hovers, tints) follows the faction */
+    --color-emerald-300: #7dd3fc;
+    --color-emerald-400: #38bdf8;
+    --color-emerald-500: #0ea5e9;
+    --color-emerald-600: #0284c7;
+}
+html.res.daylight {
+    --color-accent: #0369a1;
+    --color-accent-ink: #ffffff;
+}
+
+/* Inertia's top loading bar tracks the viewer's faction accent (blue for RES) instead of a fixed green. */
+#nprogress .bar { background: var(--color-accent) !important; }
+#nprogress .peg { box-shadow: 0 0 10px var(--color-accent), 0 0 5px var(--color-accent) !important; }
+
+html { transition: background-color 0.2s ease; }
+
+/* "Big View" field mode — bump the root font size so text, padding, and touch targets all scale up (the
+   Tailwind spacing scale is rem-based). Unlike CSS zoom this keeps viewport units, fixed/sticky elements,
+   and the map's pixel ratio in honest coordinates, so no per-surface workarounds are needed. Menu toggle. */
+html.fat-finger { font-size: 120%; }
+
+body {
+    background-color: var(--color-bg);
+    color: var(--color-ink);
+    /* Guard against any stray few-px horizontal overflow on mobile (which ate the right padding / let the
+       page scroll sideways). `clip` — not `hidden` — so it doesn't become a scroll container and break the
+       sticky header / fixed modals. */
+    overflow-x: clip;
+    /* Triangulation field (Ingress links/fields) + an XM glow from above. */
+    background-image:
+        radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--color-accent) 9%, transparent) 0%, transparent 55%),
+        repeating-linear-gradient(60deg, transparent 0 63px, color-mix(in srgb, var(--color-accent) 4%, transparent) 63px 64px),
+        repeating-linear-gradient(-60deg, transparent 0 63px, color-mix(in srgb, var(--color-accent) 4%, transparent) 63px 64px),
+        repeating-linear-gradient(0deg, transparent 0 63px, color-mix(in srgb, var(--color-ink) 3%, transparent) 63px 64px);
+    background-attachment: fixed;
+}
+
+/* CRT scanlines + faint flicker-free overlay, painted above the app, never blocking input. */
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.10) 0 1px, transparent 1px 3px);
+    opacity: 0.45;
+}
+
+html.daylight body,
+html.daylight {
+    background-image:
+        repeating-linear-gradient(60deg, transparent 0 63px, color-mix(in srgb, var(--color-ink) 4%, transparent) 63px 64px),
+        repeating-linear-gradient(-60deg, transparent 0 63px, color-mix(in srgb, var(--color-ink) 4%, transparent) 63px 64px);
+}
+html.daylight body::after { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+    html { transition: none; }
+}
+
+/* ---- Scanner HUD building blocks ---- */
+
+/* Neon glow for the wordmark / live accents. */
+.glow {
+    text-shadow: 0 0 6px color-mix(in srgb, var(--color-accent) 70%, transparent),
+        0 0 14px color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+html.daylight .glow { text-shadow: none; }
+
+/* Brand field-mark (BrandMark.vue) — the ▲ drawn as an Ingress control field.
+   currentColor inherits the faction accent (green ENL / blue RES) from the
+   wordmark's text-accent; the glow mirrors .glow and drops in daylight. */
+.brand-mark {
+    display: inline-block;
+    vertical-align: -0.2em;
+    width: auto;
+    overflow: visible;            /* let the glow bleed past the viewBox */
+}
+.brand-mark .bm-link { stroke: currentColor; fill: none; }
+.brand-mark .bm-fill { fill: currentColor; opacity: 0.16; }
+.brand-mark .bm-ring { stroke: currentColor; fill: var(--color-bg); }
+.brand-mark .bm-core { fill: currentColor; }
+.brand-mark--glow {
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-accent) 70%, transparent))
+        drop-shadow(0 0 12px color-mix(in srgb, var(--color-accent) 32%, transparent));
+}
+html.daylight .brand-mark--glow { filter: none; }
+
+/* Notification-banner glow follows the faction accent (blue for RES, green for ENL). */
+.toast-glow { box-shadow: 0 0 24px -8px color-mix(in srgb, var(--color-accent) 55%, transparent); }
+
+/* Drop the native number-input spinner arrows by default — most inputs provide their own controls. */
+input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+/* …but `.num-spin` opts an input back INTO the native up/down arrows (e.g. the keys widget).
+   color-scheme makes the UA render those arrows in the app's theme — dark by default, light in daylight. */
+input[type='number'].num-spin { appearance: auto; -moz-appearance: number-input; color-scheme: dark; }
+html.daylight input[type='number'].num-spin { color-scheme: light; }
+input[type='number'].num-spin::-webkit-inner-spin-button { -webkit-appearance: inner-spin-button; opacity: 1; margin: 0; }
+
+/* Uniform placeholders across every input/textarea — same font + muted colour, regardless of the field's
+   own font (e.g. mono inputs still get a sans, evenly-weighted placeholder). */
+input::placeholder,
+textarea::placeholder {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    color: var(--color-ink-faint);
+    opacity: 1;
+}
+
+/* HUD panel signature: every surface card gets chamfered corners + a faint accent
+   edge-glow, so the whole app reads like scanner instrumentation without per-panel markup. */
+.bg-surface.rounded-lg {
+    clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 13%, transparent),
+        0 0 22px -12px color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+html.daylight .bg-surface.rounded-lg {
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+/* Section header bar with a leading targeting tick. */
+.hud-label::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 7px;
+    transform: rotate(45deg);
+    background: var(--color-accent);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--color-accent) 80%, transparent);
+    vertical-align: middle;
+}
+
+/* Kabob menu: a HUD "boot" reveal — the panel pops out from the brand, then items cascade in. */
+.menu-pop-enter-active { transition: opacity 0.15s ease-out, transform 0.18s cubic-bezier(0.2, 0.85, 0.3, 1.3); transform-origin: top left; }
+.menu-pop-leave-active { transition: opacity 0.1s ease-in, transform 0.1s ease-in; transform-origin: top left; }
+.menu-pop-enter-from { opacity: 0; transform: translateY(-6px) scale(0.92); }
+.menu-pop-leave-to { opacity: 0; transform: translateY(-4px) scale(0.97); }
+
+.menu-stagger > * { animation: menuItem 0.26s ease-out both; }
+.menu-stagger > *:nth-child(1) { animation-delay: 0.05s; }
+.menu-stagger > *:nth-child(2) { animation-delay: 0.09s; }
+.menu-stagger > *:nth-child(3) { animation-delay: 0.13s; }
+.menu-stagger > *:nth-child(4) { animation-delay: 0.17s; }
+.menu-stagger > *:nth-child(5) { animation-delay: 0.21s; }
+.menu-stagger > *:nth-child(n+6) { animation-delay: 0.25s; }
+@keyframes menuItem { from { opacity: 0; transform: translateX(-7px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .menu-pop-enter-active, .menu-pop-leave-active { transition: none; }
+    .menu-stagger > * { animation: none; }
+    .animate-pulse { animation: none !important; } /* Tailwind utility isn't covered by component-scoped blocks */
+}
+
+/* MapLibre native controls (zoom / geolocate / attribution) themed — defaults ignore dark mode. */
+.op-map .maplibregl-ctrl-group {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+.op-map .maplibregl-ctrl-group button { background: transparent; }
+.op-map .maplibregl-ctrl-group button + button { border-top: 1px solid var(--color-line); }
+.op-map .maplibregl-ctrl-group button:hover { background: color-mix(in srgb, var(--color-accent) 14%, transparent); }
+.op-map .maplibregl-ctrl-attrib { font-size: 9px; background: color-mix(in srgb, var(--color-surface) 85%, transparent) !important; }
+.op-map .maplibregl-ctrl-attrib a { color: var(--color-ink-dim); }
+/* The control icons + the ⓘ attribution button are dark SVGs → invert them in night mode so they read. */
+html:not(.daylight) .op-map .maplibregl-ctrl-icon,
+html:not(.daylight) .op-map .maplibregl-ctrl-attrib-button { filter: invert(1) brightness(1.1); }
+
+/* Widget scroll areas: reserve a thin gutter so right-edge controls (delete, etc.)
+   never sit under the scrollbar, and keep the scrollbar on-theme. */
+.op-scroll { scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: rgba(124, 166, 160, 0.4) transparent; }
+.op-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.op-scroll::-webkit-scrollbar-thumb { background: rgba(124, 166, 160, 0.35); border-radius: 4px; }
+.op-scroll::-webkit-scrollbar-thumb:hover { background: rgba(28, 240, 160, 0.5); }
+.op-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* ---- Drag (dashboard widgets = header-handle drag, no hold; mission list = press-and-hold) — see resources/js/drag.js ----
+   Keep touch-action:auto so a quick swipe scrolls the page natively; drag.js's guard cancels the scroll
+   only while something is actually dragging. (grid-layout-plus otherwise forces touch-action:none on
+   Android, which killed all scrolling.) */
+.vgl-layout .vgl-item--no-touch { touch-action: auto; }
+/* …but the resize handle itself must NOT scroll on touch — the item's touch-action:auto cascades to it,
+   so on a phone a corner drag scrolled the page instead of resizing. Re-assert touch-action:none (and a
+   bigger hit area) on the handle so the drag resizes the widget. */
+.vgl-layout .vgl-item__resizer,
+.vgl-layout .vgl-resizer { touch-action: none; width: 28px; height: 28px; }
+/* The drag handle + resize handle must NOT start a text selection / iOS copy-paste callout on long-press
+   (widget CONTENT stays selectable — only the handles and an in-progress drag are locked). */
+.vgl-layout .vgl-item__resizer,
+.vgl-layout .vgl-resizer,
+.widget-drag { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.vgl-item--dragging, .vgl-item--dragging *,
+.sortable-chosen, .sortable-chosen * { cursor: grabbing !important; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* Drag affordance for the widget grid (no press-and-hold): the header bar is the grab handle — a grab
+   cursor over it, a pointer over its buttons. */
+.widget-drag { cursor: grab; }
+.widget-drag button { cursor: pointer; }
+/* The "in drag mode" cue on both surfaces: a chamfered card (the .bg-surface.rounded-lg clip-path cuts the
+   top-left + bottom-right corners) is lifted over a plain RECTANGLE of accent, so the green shows through
+   those cut corners.
+
+   Dashboard widgets (grid-layout-plus) get a separate drop-placeholder element behind the lifted widget. */
+.vgl-layout .vgl-item--placeholder {
+    background-color: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+    border-radius: 0.5rem;
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+    opacity: 1;
+}
+
+/* Mission cards (vuedraggable) get it via the .mission-slot wrapper (which has no chamfer): when the card
+   is grabbed or dragged the slot lights up accent BEHIND it, showing through the card's cut corners. The
+   drop placeholder hides the card so it reads as a clean green slot. */
+.mission-slot.sortable-chosen,
+.mission-slot.mission-ghost {
+    background-color: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
+    border-radius: 0.5rem;
+    box-shadow: inset 0 0 0 1px var(--color-accent); /* the bright accent ring is what reads as "highlighted" at the cut corners */
+}
+.mission-slot.mission-ghost > * { visibility: hidden; }
+
+/* The lifted item while dragging — accent ring + glow. Shared by both surfaces. */
+.vgl-item--dragging > *,
+.mission-slot.mission-drag {
+    box-shadow: 0 0 0 1px var(--color-accent), 0 12px 28px -8px color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+
+/* Dashboard op cards (vuedraggable): the drop placeholder reads as a clean accent slot, and the
+   grabbed/lifted card gets the same accent ring + glow as the mission cards. */
+.op-card.op-ghost {
+    background-color: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+.op-card.op-ghost > * { visibility: hidden; }
+.op-card.sortable-chosen {
+    box-shadow: 0 0 0 1px var(--color-accent), 0 12px 28px -8px color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
