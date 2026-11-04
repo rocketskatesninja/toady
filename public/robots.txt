@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /
+Allow: /guide
+Allow: /showcase
+Allow: /privacy
+Allow: /terms
+
+# app + auth-gated areas — nothing to index here
+Disallow: /dashboard
+Disallow: /ops
+Disallow: /admin
+Disallow: /profile
+Disallow: /catalog
+Disallow: /onboard
+Disallow: /notifications
+Disallow: /reference
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /j/
+Disallow: /map/
+Disallow: /api/
+
+Sitemap: https://toady.net/sitemap.xml
